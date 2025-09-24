@@ -266,3 +266,9 @@ function generateReference(): string {
 export const getAccounts = getAccountDetails;
 export const getBalances = getAccountBalances;
 export const getTransactions = getAccountTransactions;
+
+export async function listRequisitions(): Promise<any> {
+  return fetchWithAuth(`/requisitions/`, {
+    method: "GET",
+  });
+}

@@ -30,12 +30,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       const databases = new Databases(client);
 
       try {
-        // Store requisition in database
+        // Store requisition in database - use requisition.id as document ID
         try {
           await databases.createDocument(
             process.env.APPWRITE_DATABASE_ID as string,
             'requisitions', // Collection ID
-            ID.unique(),
+            requisition.id, // Use GoCardless requisition ID as document ID
             {
               userId: userId,
               requisitionId: requisition.id,
@@ -55,12 +55,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
             // Get account details
             const accountDetails = await getAccounts(accountId);
             
-            // Store bank account in database
+            // Store bank account in database - use GoCardless accountId as document ID
             try {
               const accountDoc = await databases.createDocument(
                 process.env.APPWRITE_DATABASE_ID as string,
                 'bank_accounts', // Collection ID
-                ID.unique(),
+                accountId, // Use GoCardless account ID as document ID
                 {
                   userId: userId,
                   accountId: accountId,
@@ -81,10 +81,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
                 if (balances && balances.length > 0) {
                   for (const balance of balances) {
                     try {
+                      // Create unique balance ID: accountId_balanceType_referenceDate
+                      const balanceId = `${accountId}_${balance.balanceType || 'closingBooked'}_${balance.referenceDate || new Date().toISOString().split('T')[0]}`;
                       await databases.createDocument(
                         process.env.APPWRITE_DATABASE_ID as string,
                         'balances', // Collection ID
-                        ID.unique(),
+                        balanceId, // Use composite ID as document ID
                         {
                           userId: userId,
                           accountId: accountId,
@@ -110,14 +112,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
                 if (transactions && transactions.length > 0) {
                   for (const transaction of transactions.slice(0, 100)) { // Limit to 100 most recent
                     try {
+                      // Use GoCardless transaction ID as document ID, fallback to composite ID
+                      const transactionDocId = transaction.transactionId || 
+                                              transaction.internalTransactionId || 
+                                              `${accountId}_${transaction.bookingDate || new Date().toISOString().split('T')[0]}_${Date.now()}`;
+                      
                       await databases.createDocument(
                         process.env.APPWRITE_DATABASE_ID as string,
                         'transactions', // Collection ID
-                        ID.unique(),
+                        transactionDocId, // Use transaction ID as document ID
                         {
                           userId: userId,
                           accountId: accountId,
-                          transactionId: transaction.transactionId || transaction.internalTransactionId || ID.unique(),
+                          transactionId: transaction.transactionId || transaction.internalTransactionId || transactionDocId,
                           amount: transaction.transactionAmount?.amount || '0',
                           currency: transaction.transactionAmount?.currency || 'EUR',
                           bookingDate: transaction.bookingDate || null,
@@ -144,12 +151,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           }
         }
 
-        // Create bank connection record
+        // Create bank connection record - use composite ID: userId_institutionId
         try {
+          const connectionId = `${userId}_${requisition.institution_id}`;
           await databases.createDocument(
             process.env.APPWRITE_DATABASE_ID as string,
             'bank_connections', // Collection ID
-            ID.unique(),
+            connectionId, // Use composite ID as document ID
             {
               userId: userId,
               institutionId: requisition.institution_id,

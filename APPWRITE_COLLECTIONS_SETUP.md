@@ -4,7 +4,25 @@
 
 Go to your Appwrite Console and create these collections in the `finance` database:
 
-### 1. requisitions
+### 1. users_private
+**Collection ID:** `users_private`
+
+**Attributes:**
+- `userId` (String, Required, Size: 255) - equals Account.$id
+- `role` (String, Size: 50, Default: "user")
+- `email` (String, Size: 255)
+- `name` (String, Size: 255)
+
+**Indexes:**
+- `idx_users_private_userId` on `userId` (Unique: true)
+
+**Permissions:**
+- Create: `users`
+- Read: `users`
+- Update: `users`
+- Delete: `users`
+
+### 2. requisitions
 **Collection ID:** `requisitions`
 
 **Attributes:**
@@ -25,7 +43,7 @@ Go to your Appwrite Console and create these collections in the `finance` databa
 - Update: `users`
 - Delete: `users`
 
-### 2. bank_connections
+### 3. bank_connections
 **Collection ID:** `bank_connections`
 
 **Attributes:**
@@ -45,7 +63,7 @@ Go to your Appwrite Console and create these collections in the `finance` databa
 - Update: `users`
 - Delete: `users`
 
-### 3. bank_accounts
+### 4. bank_accounts
 **Collection ID:** `bank_accounts`
 
 **Attributes:**
@@ -69,7 +87,7 @@ Go to your Appwrite Console and create these collections in the `finance` databa
 - Update: `users`
 - Delete: `users`
 
-### 4. balances
+### 5. balances
 **Collection ID:** `balances`
 
 **Attributes:**
@@ -90,7 +108,7 @@ Go to your Appwrite Console and create these collections in the `finance` databa
 - Update: `users`
 - Delete: `users`
 
-### 5. transactions
+### 6. transactions
 **Collection ID:** `transactions`
 
 **Attributes:**

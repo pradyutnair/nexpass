@@ -1,0 +1,33 @@
+---
+description: DO NOT CREATE .ENV FILES. The .env file exists, do not create it or modify it.  It does exist with the following variables:
+# Appwrite Configuration (Required)
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://fra.cloud.appwrite.io/v1
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=
+
+# Database and Collection IDs (Required for user management)
+NEXT_PUBLIC_APPWRITE_DATABASE_ID=
+NEXT_PUBLIC_APPWRITE_USERS_PRIVATE_COLLECTION_ID=users_private
+
+# Google OAuth Configuration (Optional)
+GOOGLE_CLIENT_ID=
+GOOGLE_SECRET=
+
+# Server API Key (for Functions)
+APPWRITE_API_KEY=a
+
+# GoCardless Configuration (Required for banking)
+GOCARDLESS_SECRET_ID=
+GOCARDLESS_SECRET_KEY=
+
+# Banking Collections (Server-side)
+APPWRITE_DATABASE_ID=68d42ac20031b27284c9
+APPWRITE_USERS_PRIVATE_COLLECTION_ID=users_private
+APPWRITE_REQUISITIONS_COLLECTION_ID=requisitions
+APPWRITE_BANK_CONNECTIONS_COLLECTION_ID=bank_connections
+APPWRITE_BANK_ACCOUNTS_COLLECTION_ID=bank_accounts
+APPWRITE_BALANCES_COLLECTION_ID=balances
+APPWRITE_TRANSACTIONS_COLLECTION_ID=transactions
+
+globs:
+alwaysApply: true
+---

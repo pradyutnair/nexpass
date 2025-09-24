@@ -149,6 +149,7 @@ export async function createUserPrivateRecord(userId: string, email?: string, na
     
     // Use the actual attributes from your collection schema
     const documentData = {
+      userId: userId, // Add userId column as specified
       role: "user", // This attribute exists in your collection with default "user"
       ...(email && { email }), // Only add if email exists
       ...(name && { name })    // Only add if name exists
