@@ -23,13 +23,8 @@ export default function AuthCallbackPage() {
           // Create or update user private record
           await createUserPrivateRecord(user.$id, user.email, user.name);
           
-          setStatus('success');
-          setMessage('Authentication successful! Redirecting...');
-          
-          // Redirect to dashboard after a short delay
-          setTimeout(() => {
-            router.push('/dashboard');
-          }, 2000);
+          // Redirect directly to dashboard without showing success screen
+          router.push('/dashboard');
         } else {
           throw new Error('No user found after authentication');
         }
