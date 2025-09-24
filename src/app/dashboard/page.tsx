@@ -1,5 +1,6 @@
 "use client";
 
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AppBar } from "@/components/dashboard/AppBar";
 import { KpiCard } from "@/components/dashboard/KpiCard";
@@ -32,31 +33,33 @@ export default function Dashboard() {
   const savingsRate = totalIncome > 0 ? (netIncome / totalIncome) * 100 : 0;
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
-        {/* App Bar */}
-        <AppBar />
+    <ProtectedRoute>
+      <AppLayout>
+        <div className="space-y-6">
+          {/* App Bar */}
+          <AppBar />
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <KpiCard title="Balance" value={totalBalance} />
-          <KpiCard title="Income" value={totalIncome} />
-          <KpiCard title="Expenses" value={totalExpenses} />
-          <KpiCard title="Savings" value={savingsRate} isPercentage />
-        </div>
-
-        {/* Time Series Chart */}
-        <TimeseriesChart data={mockTimeseriesData} />
-
-        {/* Bottom Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="h-[400px]">
-            <ChatPanel />
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <KpiCard title="Balance" value={totalBalance} />
+            <KpiCard title="Income" value={totalIncome} />
+            <KpiCard title="Expenses" value={totalExpenses} />
+            <KpiCard title="Savings" value={savingsRate} isPercentage />
           </div>
-          <RecentExpensesTable transactions={transactions} />
-          <CategoriesPie />
+
+          {/* Time Series Chart */}
+          <TimeseriesChart data={mockTimeseriesData} />
+
+          {/* Bottom Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="h-[400px]">
+              <ChatPanel />
+            </div>
+            <RecentExpensesTable transactions={transactions} />
+            <CategoriesPie />
+          </div>
         </div>
-      </div>
-    </AppLayout>
+      </AppLayout>
+    </ProtectedRoute>
   );
 }

@@ -1,4 +1,4 @@
-import { Client, Account } from "appwrite";
+import { Client, Account, Databases, ID } from "appwrite";
 
 function assertAuthEnv(): void {
   const missing: string[] = [];
@@ -7,6 +7,17 @@ function assertAuthEnv(): void {
   if (missing.length > 0) {
     throw new Error(
       `Missing required env var(s): ${missing.join(", ")}. Please set them before using auth.`
+    );
+  }
+}
+
+function assertDatabaseEnv(): void {
+  const missing: string[] = [];
+  if (!process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID) missing.push("NEXT_PUBLIC_APPWRITE_DATABASE_ID");
+  if (!process.env.NEXT_PUBLIC_APPWRITE_USERS_PRIVATE_COLLECTION_ID) missing.push("NEXT_PUBLIC_APPWRITE_USERS_PRIVATE_COLLECTION_ID");
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required env var(s): ${missing.join(", ")}. Please set them before using database operations.`
     );
   }
 }
@@ -60,4 +71,82 @@ export async function requireAuthUser(request: Request): Promise<unknown> {
     throw new StatusError(error || "Unauthorized", 401);
   }
   return user;
+}
+
+// Client-side auth utilities
+export function createAppwriteClient() {
+  assertAuthEnv();
+  return new Client()
+    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT as string)
+    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID as string);
+}
+
+export async function createUserPrivateRecord(userId: string, email?: string, name?: string) {
+  assertDatabaseEnv();
+  const client = createAppwriteClient();
+  const databases = new Databases(client);
+  
+  console.log("🔍 Creating user private record...");
+  console.log("Database ID:", process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID);
+  console.log("Collection ID:", process.env.NEXT_PUBLIC_APPWRITE_USERS_PRIVATE_COLLECTION_ID);
+  console.log("User ID:", userId);
+  
+  try {
+    // Check if user record already exists by document ID (which will be the user ID)
+    console.log("📋 Checking for existing user record...");
+    try {
+      const existingUser = await databases.getDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID as string,
+        process.env.NEXT_PUBLIC_APPWRITE_USERS_PRIVATE_COLLECTION_ID as string,
+        userId
+      );
+      console.log("✅ Found existing user record");
+      return existingUser;
+    } catch (getError: any) {
+      // Document doesn't exist, continue to create it
+      if (getError.code !== 404) {
+        throw getError;
+      }
+    }
+    
+    // Create new user record using userId as the document ID
+    console.log("🆕 Creating new user record...");
+    
+    // Use the actual attributes from your collection schema
+    const documentData = {
+      role: "user", // This attribute exists in your collection with default "user"
+      ...(email && { email }), // Only add if email exists
+      ...(name && { name })    // Only add if name exists
+    };
+    
+    console.log("📝 Document data:", documentData);
+    
+    const userRecord = await databases.createDocument(
+      process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID as string,
+      process.env.NEXT_PUBLIC_APPWRITE_USERS_PRIVATE_COLLECTION_ID as string,
+      userId, // Use userId as document ID instead of ID.unique()
+      documentData
+    );
+    
+    console.log("✅ User record created successfully");
+    return userRecord;
+  } catch (error: any) {
+    console.error("❌ Error creating user private record:", error);
+    console.error("Error details:", {
+      message: error.message,
+      code: error.code,
+      type: error.type
+    });
+    
+    // Provide helpful error messages
+    if (error.message?.includes('Database not found')) {
+      throw new Error('Database "finance" not found. Please create it in Appwrite Console.');
+    } else if (error.message?.includes('Collection not found')) {
+      throw new Error('Collection "users_private" not found. Please create it in the "finance" database.');
+    } else if (error.message?.includes('Failed to fetch')) {
+      throw new Error('Network error: Cannot connect to Appwrite. Check your endpoint and project ID.');
+    }
+    
+    throw error;
+  }
 }
