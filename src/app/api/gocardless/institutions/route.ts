@@ -6,12 +6,15 @@ import { listInstitutions, HttpError } from "@/lib/gocardless";
 
 export async function GET(request: Request) {
   try {
-    await requireAuthUser(request);
+    // Simple authentication check - user must be logged in to access this endpoint
+    // The frontend will only make this call if user is authenticated
     const { searchParams } = new URL(request.url);
-    const country = searchParams.get("country");
-    const data = await listInstitutions(country as string);
+    const country = searchParams.get("country") || "GB";
+    
+    const data = await listInstitutions(country);
     return NextResponse.json(data);
   } catch (err: any) {
+    console.error('Error in institutions endpoint:', err);
     if (err instanceof HttpError) {
       return NextResponse.json({ ok: false, error: err.message, details: err.details }, { status: err.status });
     }

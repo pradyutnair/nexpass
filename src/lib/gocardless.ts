@@ -261,3 +261,8 @@ function generateReference(): string {
   // 16-char URL-safe reference
   return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
 }
+
+// Alias functions for consistency with the callback route
+export const getAccounts = getAccountDetails;
+export const getBalances = getAccountBalances;
+export const getTransactions = getAccountTransactions;

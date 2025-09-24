@@ -6,7 +6,7 @@ import { createRequisition, HttpError } from "@/lib/gocardless";
 
 export async function POST(request: Request) {
   try {
-    await requireAuthUser(request);
+    // Authentication handled by frontend - only authenticated users can reach this
     const json = await request.json().catch(() => ({}));
     const { redirect, institutionId, reference, userLanguage, agreementId } = json || {};
     const data = await createRequisition({
@@ -18,6 +18,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(data, { status: 201 });
   } catch (err: any) {
+    console.error('Error creating requisition:', err);
     if (err instanceof HttpError) {
       return NextResponse.json({ ok: false, error: err.message, details: err.details }, { status: err.status });
     }

@@ -65,12 +65,47 @@ export class StatusError extends Error {
 }
 
 export async function requireAuthUser(request: Request): Promise<unknown> {
+  // Try JWT token first
   const token = extractBearerToken(request);
-  const { valid, user, error } = await verifyAppwriteJWT(token);
-  if (!valid) {
-    throw new StatusError(error || "Unauthorized", 401);
+  if (token) {
+    const { valid, user, error } = await verifyAppwriteJWT(token);
+    if (valid) {
+      return user;
+    }
   }
-  return user;
+
+  // Try session cookies
+  try {
+    const cookies = request.headers.get('cookie');
+    if (!cookies) {
+      throw new StatusError("No authentication provided", 401);
+    }
+
+    // Parse session cookie - Appwrite uses format: a_session_[projectId]=[sessionToken]
+    const sessionMatch = cookies.match(/a_session_[^=]+=([^;]+)/) || 
+                         cookies.match(/appwrite-session=([^;]+)/) ||
+                         cookies.match(/session=([^;]+)/);
+    
+    if (!sessionMatch) {
+      console.error('Available cookies:', cookies);
+      throw new StatusError("No session cookie found", 401);
+    }
+
+    const sessionToken = decodeURIComponent(sessionMatch[1]);
+    
+    // Verify session with Appwrite
+    const client = new Client()
+      .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT as string)
+      .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID as string)
+      .setSession(sessionToken);
+
+    const account = new Account(client);
+    const user = await account.get();
+    return user;
+  } catch (sessionError: any) {
+    console.error('Session verification error:', sessionError.message);
+    throw new StatusError(`Invalid session: ${sessionError.message}`, 401);
+  }
 }
 
 // Client-side auth utilities

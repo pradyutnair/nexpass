@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AppBar } from "@/components/dashboard/AppBar";
@@ -9,6 +11,7 @@ import { ChatPanel } from "@/components/dashboard/ChatPanel";
 import { RecentExpensesTable } from "@/components/dashboard/RecentExpensesTable";
 import { CategoriesPie } from "@/components/dashboard/CategoriesPie";
 import { useAccounts, useTransactions } from "@/lib/api";
+import { useBankConnection } from "@/hooks/useBankConnection";
 
 // Mock data for demonstration
 const mockTimeseriesData = [
@@ -21,9 +24,19 @@ const mockTimeseriesData = [
 ];
 
 export default function Dashboard() {
+  const router = useRouter();
+  const { isLoading: isBankLoading, hasConnectedBanks } = useBankConnection();
+  
   // Integrate with GoCardless API
   const { data: accounts } = useAccounts();
   const { data: transactions } = useTransactions({ limit: 10 });
+
+  // Redirect to bank connection if no banks are connected
+  useEffect(() => {
+    if (!isBankLoading && !hasConnectedBanks) {
+      router.push('/dashboard/banks');
+    }
+  }, [isBankLoading, hasConnectedBanks, router]);
 
   // Calculate metrics from real data or use mock data
   const totalBalance = accounts?.reduce((sum, account) => sum + (account.balance || 0), 0) || 16740.20;
@@ -31,6 +44,25 @@ export default function Dashboard() {
   const totalExpenses = Math.abs(transactions?.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0) || 9420);
   const netIncome = totalIncome - totalExpenses;
   const savingsRate = totalIncome > 0 ? (netIncome / totalIncome) * 100 : 0;
+
+  // Show loading state while checking bank connections
+  if (isBankLoading) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="glass-card p-8 text-center">
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading dashboard...</p>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  // If no connected banks, this component won't render (will redirect)
+  if (!hasConnectedBanks) {
+    return null;
+  }
 
   return (
     <ProtectedRoute>
