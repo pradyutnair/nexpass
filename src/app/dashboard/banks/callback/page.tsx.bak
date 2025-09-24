@@ -70,7 +70,7 @@ export default function BankCallbackPage() {
         const data = await response.json();
         console.log('📋 Requisition data:', data);
         
-        if (data.status === 'LINKED' || data.status === 'LN') {
+        if (data.status === 'LINKED') {
           setStatus('success');
           setMessage('Bank connected successfully! Fetching your account data...');
           
