@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ClientOnly } from '@/components/ClientOnly';
 
-export default function BankCallbackPage() {
+function BankCallbackContent() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('Processing bank connection...');
   const router = useRouter();
@@ -163,5 +163,20 @@ export default function BankCallbackPage() {
         </div>
       </div>
     </ClientOnly>
+  );
+}
+
+export default function BankCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="glass-card p-8 text-center">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    }>
+      <BankCallbackContent />
+    </Suspense>
   );
 }

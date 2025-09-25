@@ -51,7 +51,7 @@ export function useBankConnection() {
             'bank_connections', // Collection ID
             [Query.equal('userId', currentUser.$id)]
           );
-          connections = connectionsResponse.documents as BankConnection[];
+          connections = connectionsResponse.documents as unknown as BankConnection[];
           setBankConnections(connections);
         } catch (error) {
           console.log('Bank connections collection not available yet');
@@ -65,7 +65,7 @@ export function useBankConnection() {
             'requisitions', // Collection ID
             [Query.equal('userId', currentUser.$id)]
           );
-          reqs = requisitionsResponse.documents as Requisition[];
+          reqs = requisitionsResponse.documents as unknown as Requisition[];
           setRequisitions(reqs);
         } catch (error) {
           console.log('Requisitions collection not available yet');
