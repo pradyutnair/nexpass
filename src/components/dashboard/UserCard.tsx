@@ -72,14 +72,6 @@ export function UserCard() {
                 {(user.name || user.email || 'U').charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="text-left hidden sm:block">
-              <p className="text-white font-medium text-sm">
-                {user.name || 'User'}
-              </p>
-              <p className="text-gray-400 text-xs">
-                {user.email}
-              </p>
-            </div>
           </div>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
