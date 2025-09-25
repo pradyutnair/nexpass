@@ -3,9 +3,9 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Plus, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ConnectBankDialog } from "@/components/banks/ConnectBankDialog";
 import { formatCurrency } from "@/lib/utils";
 import { useAccounts } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 // Mock data for connected banks
 const connectedBanks = [
@@ -36,6 +36,7 @@ const connectedBanks = [
 ];
 
 export default function Banks() {
+  const router = useRouter();
   // Use real data from GoCardless API
   const { data: accounts, isLoading } = useAccounts();
   
@@ -51,6 +52,10 @@ export default function Banks() {
 
   const totalBalance = displayBanks.reduce((sum, bank) => sum + bank.balance, 0);
 
+  const handleConnectBank = () => {
+    router.push('/link-bank');
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -58,12 +63,13 @@ export default function Banks() {
         <div className="glass-card p-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold text-white">Banks</h1>
-            <ConnectBankDialog>
-              <Button className="glass-button bg-white/10 hover:bg-white/15 text-white">
-                <Plus className="w-4 h-4 mr-2" />
-                Connect
-              </Button>
-            </ConnectBankDialog>
+            <Button 
+              onClick={handleConnectBank}
+              className="glass-button bg-white/10 hover:bg-white/15 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Connect
+            </Button>
           </div>
         </div>
 

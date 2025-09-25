@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 export const metadata: Metadata = {
   title: "Nexpass - Personal Finance Dashboard",
@@ -16,9 +17,11 @@ export default function RootLayout({
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black" suppressHydrationWarning>
         <QueryProvider>
-          <div className="min-h-screen">
-            {children}
-          </div>
+          <AuthProvider>
+            <div className="min-h-screen">
+              {children}
+            </div>
+          </AuthProvider>
         </QueryProvider>
       </body>
     </html>

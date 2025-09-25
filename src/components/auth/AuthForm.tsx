@@ -6,6 +6,7 @@ import { createAppwriteClient, createUserPrivateRecord } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AuthFormProps {
   mode: 'signin' | 'signup';
@@ -19,6 +20,7 @@ export function AuthForm({ mode, onToggleMode }: AuthFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const { refreshUser } = useAuth();
 
   const client = createAppwriteClient();
   const account = new Account(client);
@@ -52,7 +54,8 @@ export function AuthForm({ mode, onToggleMode }: AuthFormProps) {
         await createUserPrivateRecord(user.$id, user.email, user.name);
       }
 
-      // Redirect to dashboard
+      // Refresh auth context and redirect to dashboard
+      await refreshUser();
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Authentication failed');

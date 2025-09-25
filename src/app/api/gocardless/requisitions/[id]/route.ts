@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { requireAuthUser } from "@/lib/auth";
 import { getRequisition, listRequisitions, getAccounts, getBalances, getTransactions, HttpError } from "@/lib/gocardless";
-import { Client, Databases, ID } from "appwrite";
+import { Client, Databases, ID, Query } from "appwrite";
 import { createAppwriteClient } from "@/lib/auth";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -64,11 +64,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if ((requisition.status === 'LINKED' || requisition.status === 'LN') && requisition.accounts && requisition.accounts.length > 0) {
       // Resolve DB and collection IDs from env with sensible defaults
       const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID as string;
-      const REQUISITIONS_COLLECTION_ID = process.env.APPWRITE_REQUISITIONS_COLLECTION_ID || 'requisitions';
-      const BANK_CONNECTIONS_COLLECTION_ID = process.env.APPWRITE_BANK_CONNECTIONS_COLLECTION_ID || 'bank_connections';
-      const BANK_ACCOUNTS_COLLECTION_ID = process.env.APPWRITE_BANK_ACCOUNTS_COLLECTION_ID || 'bank_accounts';
-      const BALANCES_COLLECTION_ID = process.env.APPWRITE_BALANCES_COLLECTION_ID || 'balances';
-      const TRANSACTIONS_COLLECTION_ID = process.env.APPWRITE_TRANSACTIONS_COLLECTION_ID || 'transactions';
+      const REQUISITIONS_COLLECTION_ID = process.env.APPWRITE_REQUISITIONS_COLLECTION_ID || 'requisitions_dev';
+      const BANK_CONNECTIONS_COLLECTION_ID = process.env.APPWRITE_BANK_CONNECTIONS_COLLECTION_ID || 'bank_connections_dev';
+      const BANK_ACCOUNTS_COLLECTION_ID = process.env.APPWRITE_BANK_ACCOUNTS_COLLECTION_ID || 'bank_accounts_dev';
+      const BALANCES_COLLECTION_ID = process.env.APPWRITE_BALANCES_COLLECTION_ID || 'balances_dev';
+      const TRANSACTIONS_COLLECTION_ID = process.env.APPWRITE_TRANSACTIONS_COLLECTION_ID || 'transactions_dev';
       // Create server-side client with API key
       const client = new Client()
         .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT as string)
@@ -154,22 +154,49 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
                 if (balances && balances.length > 0) {
                   for (const balance of balances) {
                     try {
-                      const balanceId = `${accountId}_${balance.balanceType || 'closingBooked'}_${balance.referenceDate || new Date().toISOString().split('T')[0]}`;
+                      // Check if balance already exists to avoid duplicates
+                      const balanceType = balance.balanceType || 'closingBooked';
+                      const referenceDate = balance.referenceDate || new Date().toISOString().split('T')[0];
+                      
+                      try {
+                        const existingBalances = await databases.listDocuments(
+                          DATABASE_ID,
+                          BALANCES_COLLECTION_ID,
+                          [
+                            Query.equal('accountId', accountId),
+                            Query.equal('balanceType', balanceType),
+                            Query.equal('referenceDate', referenceDate)
+                          ]
+                        );
+                        
+                        if (existingBalances.documents.length > 0) {
+                          console.log(`Balance for ${accountId} ${balanceType} ${referenceDate} already exists, skipping`);
+                          continue;
+                        }
+                      } catch (queryError) {
+                        console.log('Error checking existing balance, proceeding with creation');
+                      }
+                      
+                      // Use ID.unique() to generate a unique document ID
                       await databases.createDocument(
                         DATABASE_ID,
                         BALANCES_COLLECTION_ID,
-                        balanceId,
+                        ID.unique(),
                         {
                           userId: userId,
                           accountId: accountId,
                           balanceAmount: balance.balanceAmount?.amount || '0',
                           currency: balance.balanceAmount?.currency || 'EUR',
-                          balanceType: balance.balanceType || 'closingBooked',
-                          referenceDate: balance.referenceDate || new Date().toISOString().split('T')[0],
+                          balanceType: balanceType,
+                          referenceDate: referenceDate,
                         }
                       );
-                    } catch (error) {
-                      console.error('Error storing balance:', error);
+                    } catch (error: any) {
+                      if (error.message?.includes('already exists')) {
+                        console.log('Balance already exists, skipping');
+                      } else {
+                        console.error('Error storing balance:', error);
+                      }
                     }
                   }
                 }
@@ -184,18 +211,39 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
                 if (transactions && transactions.length > 0) {
                   for (const transaction of transactions.slice(0, 100)) {
                     try {
-                      const transactionDocId = transaction.transactionId || 
-                                              transaction.internalTransactionId || 
-                                              `${accountId}_${transaction.bookingDate || new Date().toISOString().split('T')[0]}_${Date.now()}`;
+                      // Use the actual transaction ID from GoCardless as a field, but generate unique doc ID
+                      const goCardlessTransactionId = transaction.transactionId || transaction.internalTransactionId;
                       
+                      // Check if transaction already exists to avoid duplicates
+                      if (goCardlessTransactionId) {
+                        try {
+                          const existingTransactions = await databases.listDocuments(
+                            DATABASE_ID,
+                            TRANSACTIONS_COLLECTION_ID,
+                            [
+                              Query.equal('transactionId', goCardlessTransactionId),
+                              Query.equal('accountId', accountId)
+                            ]
+                          );
+                          
+                          if (existingTransactions.documents.length > 0) {
+                            console.log(`Transaction ${goCardlessTransactionId} already exists, skipping`);
+                            continue;
+                          }
+                        } catch (queryError) {
+                          console.log('Error checking existing transaction, proceeding with creation');
+                        }
+                      }
+                      
+                      // Use ID.unique() to generate a unique document ID
                       await databases.createDocument(
                         DATABASE_ID,
                         TRANSACTIONS_COLLECTION_ID,
-                        transactionDocId,
+                        ID.unique(),
                         {
                           userId: userId,
                           accountId: accountId,
-                          transactionId: transaction.transactionId || transaction.internalTransactionId || transactionDocId,
+                          transactionId: goCardlessTransactionId || `generated_${accountId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                           amount: transaction.transactionAmount?.amount || '0',
                           currency: transaction.transactionAmount?.currency || 'EUR',
                           bookingDate: transaction.bookingDate || null,
@@ -206,8 +254,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
                           raw: JSON.stringify(transaction),
                         }
                       );
-                    } catch (error) {
-                      console.error('Error storing transaction:', error);
+                    } catch (error: any) {
+                      // Log error but continue processing other transactions
+                      if (error.message?.includes('already exists')) {
+                        console.log('Transaction already exists, skipping');
+                      } else {
+                        console.error('Error storing transaction:', error);
+                      }
                     }
                   }
                 }

@@ -31,7 +31,7 @@ export default function Dashboard() {
   const { data: accounts } = useAccounts();
   const { data: transactions } = useTransactions({ limit: 10 });
 
-  // Redirect to bank connection if no banks are connected
+  // Redirect to bank connection if no banks are connected (first time users only)
   useEffect(() => {
     if (!isBankLoading && !hasConnectedBanks) {
       router.push('/dashboard/banks');

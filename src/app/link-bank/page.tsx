@@ -2,12 +2,11 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { BankConnectionScreen } from '@/components/banks/BankConnectionScreen';
-import { useBankConnection } from '@/hooks/useBankConnection';
+import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 
-export default function BanksPage() {
-  const { isLoading, hasConnectedBanks, user } = useBankConnection();
+export default function LinkBankPage() {
+  const { user, isLoading } = useAuth();
   const router = useRouter();
 
   if (isLoading) {

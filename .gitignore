@@ -36,3 +36,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+appwrite_config
+.cursor
+
+.env.backup
+.env*

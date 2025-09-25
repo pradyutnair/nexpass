@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Account } from 'appwrite';
-import { createAppwriteClient } from '@/lib/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { ClientOnly } from '@/components/ClientOnly';
 
 interface ProtectedRouteProps {
@@ -11,29 +10,16 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [user, setUser] = useState<any>(null);
+  const { user, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const client = createAppwriteClient();
-        const account = new Account(client);
-        
-        const currentUser = await account.get();
-        setUser(currentUser);
-        setIsAuthenticated(true);
-      } catch (error) {
-        setIsAuthenticated(false);
-        router.push('/auth');
-      }
-    };
+    if (!isLoading && !isAuthenticated) {
+      router.push('/auth');
+    }
+  }, [isLoading, isAuthenticated, router]);
 
-    checkAuth();
-  }, [router]);
-
-  if (isAuthenticated === null) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="glass-card p-8 text-center">

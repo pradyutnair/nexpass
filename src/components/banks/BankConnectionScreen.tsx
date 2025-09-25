@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { SandboxTestButton } from './SandboxTestButton';
+import { useBankConnection } from '@/hooks/useBankConnection';
 
 interface Institution {
   id: string;
@@ -26,6 +27,9 @@ export function BankConnectionScreen({ userId, onConnectionSuccess }: BankConnec
   const [selectedCountry, setSelectedCountry] = useState('GB'); // Default to UK
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState('');
+  
+  // Get existing bank connections
+  const { bankConnections, hasConnectedBanks } = useBankConnection();
 
   // Fetch institutions on component mount
   useEffect(() => {
@@ -153,13 +157,51 @@ export function BankConnectionScreen({ userId, onConnectionSuccess }: BankConnec
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-4">
-            Connect Your Bank Account
+            {hasConnectedBanks ? 'Manage Bank Connections' : 'Connect Your Bank Account'}
           </h1>
           <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-            Securely connect your bank account to start tracking your finances. 
-            Your data is encrypted and protected.
+            {hasConnectedBanks 
+              ? 'View your connected banks or add additional bank connections.' 
+              : 'Securely connect your bank account to start tracking your finances. Your data is encrypted and protected.'
+            }
           </p>
         </div>
+
+        {/* Existing Bank Connections */}
+        {hasConnectedBanks && bankConnections.length > 0 && (
+          <div className="glass-card p-6 mb-6">
+            <h2 className="text-xl font-semibold text-white mb-4">
+              Connected Banks ({bankConnections.length})
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {bankConnections.map((connection) => (
+                <div key={connection.$id} className="p-4 rounded-lg bg-white/5 border border-white/10">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
+                      <span className="text-white font-semibold text-sm">
+                        {connection.institutionName.charAt(0)}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-white font-medium truncate">
+                        {connection.institutionName}
+                      </h3>
+                      <p className="text-gray-400 text-sm capitalize">
+                        Status: {connection.status}
+                      </p>
+                    </div>
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <p className="text-gray-300 text-sm">
+                Want to connect another bank? Select from the institutions below.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Country Selector */}
         <div className="glass-card p-6 mb-6">
