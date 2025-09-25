@@ -13,7 +13,7 @@ export default function BankCallbackPage() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Get the requisition ID from URL parameters
+        // GoCardless redirects back with parameters
         const ref = searchParams?.get('ref');
         const error = searchParams?.get('error');
         
@@ -28,42 +28,55 @@ export default function BankCallbackPage() {
         }
 
         if (!ref) {
-          throw new Error('No reference found in callback');
+          throw new Error('No reference found in callback URL');
         }
 
         setMessage('Verifying bank connection...');
 
+        let response;
         let requisitionId = ref;
+
+        // GoCardless callback handling
+        // The 'ref' parameter should contain the requisition ID
+        console.log('🔄 Processing GoCardless callback with ref:', ref);
         
-        // First, try to use the ref as a direct requisition ID
-        console.log('🔄 Attempting direct requisition lookup with ID:', ref);
-        let response = await fetch(`/api/gocardless/requisitions/${ref}`, {
+        // Try direct requisition lookup with the ref parameter
+        response = await fetch(`/api/gocardless/requisitions/${ref}`, {
           method: 'GET',
         });
 
-        // If that fails with 404, try to look it up by reference
+        // If direct lookup fails, the ref might be our custom reference instead of requisition ID
+        // This can happen in certain sandbox scenarios or if the callback URL was constructed differently
         if (!response.ok && response.status === 404) {
-          console.log('❌ Direct lookup failed, trying reference lookup...');
+          console.log('❌ Direct requisition lookup failed. Trying reference-based lookup...');
           
-          // Try to find the requisition by our reference
-          const referenceResponse = await fetch(`/api/gocardless/requisitions/by-reference/${ref}`, {
-            method: 'GET',
-          });
-          
-          if (referenceResponse.ok) {
-            const referenceData = await referenceResponse.json();
-            requisitionId = referenceData.requisitionId;
-            console.log('✅ Found requisition by reference:', requisitionId);
-            
-            // Now try again with the actual requisition ID
-            response = await fetch(`/api/gocardless/requisitions/${requisitionId}`, {
+          try {
+            const referenceResponse = await fetch(`/api/gocardless/requisitions/by-reference/${ref}`, {
               method: 'GET',
             });
+            
+            if (referenceResponse.ok) {
+              const referenceData = await referenceResponse.json();
+              requisitionId = referenceData.requisitionId;
+              console.log('✅ Found requisition by reference lookup:', requisitionId);
+              
+              // Retry with the actual GoCardless requisition ID
+              response = await fetch(`/api/gocardless/requisitions/${requisitionId}`, {
+                method: 'GET',
+              });
+            } else {
+              console.log('❌ Reference lookup failed. This may be an invalid or expired callback.');
+              throw new Error('Unable to find requisition. The bank connection may have expired or failed.');
+            }
+          } catch (refError) {
+            console.error('❌ Reference lookup error:', refError);
+            throw new Error('Failed to process bank connection callback. Please try connecting again.');
           }
         }
 
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => ({}));
+          console.error('❌ Requisition processing failed:', errorData);
           throw new Error(errorData.error || 'Failed to process bank connection');
         }
 

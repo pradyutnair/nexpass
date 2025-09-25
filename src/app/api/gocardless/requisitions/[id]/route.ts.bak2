@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { requireAuthUser } from "@/lib/auth";
-import { getRequisition, listRequisitions, getAccounts, getBalances, getTransactions, HttpError } from "@/lib/gocardless";
+import { getRequisition, getAccounts, getBalances, getTransactions, HttpError } from "@/lib/gocardless";
 import { Client, Databases, ID } from "appwrite";
 import { createAppwriteClient } from "@/lib/auth";
 
@@ -10,80 +10,37 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id: requisitionId } = await params;
 
-    // Identify the user: prefer authenticated session, else parse from reference
-    let authedUserId: string | null = null;
-    try {
-      const authedUser: any = await requireAuthUser(request);
-      authedUserId = (authedUser?.$id || authedUser?.id || null) as string | null;
-    } catch {
-      // Not authenticated via JWT/cookie; will fallback to reference parsing
-    }
-
-    // Get requisition status from GoCardless, with fallback via list if needed
-    let requisition: any = null;
-    try {
-      requisition = await getRequisition(requisitionId);
-    } catch (err: any) {
-      if (err instanceof HttpError && (err.status === 404 || err.status === 400)) {
-        try {
-          const all = await listRequisitions();
-          const found = all?.results?.find((req: any) => req.id === requisitionId);
-          if (found) {
-            requisition = found;
-          }
-        } catch (listErr) {
-          // ignore, will handle below
-        }
-      } else {
-        throw err;
-      }
-    }
-
+    // Get requisition status from GoCardless
+    const requisition = await getRequisition(requisitionId);
+    
     if (!requisition) {
       return NextResponse.json({ ok: false, error: "Requisition not found" }, { status: 404 });
     }
 
-    // Determine userId: use authed user first, else try to parse from reference
-    let userId: string | undefined = authedUserId || undefined;
-    if (!userId) {
-      const reference: string | undefined = requisition.reference;
-      if (reference && typeof reference === 'string') {
-        // Support both user_ and sandbox_ prefixes
-        const match = reference.match(/^(?:user|sandbox)_([^_]+)_/);
-        if (match && match[1]) {
-          userId = match[1];
-        }
-      }
+    // Extract user ID from reference (format: user_[userId]_[timestamp])
+    const userIdMatch = requisition.reference?.match(/user_([^_]+)_/);
+    if (!userIdMatch) {
+      return NextResponse.json({ ok: false, error: "Invalid reference format" }, { status: 400 });
     }
-
-    if (!userId) {
-      return NextResponse.json({ ok: false, error: "Unable to determine user from session or reference" }, { status: 400 });
-    }
+    const userId = userIdMatch[1];
 
     // If requisition is linked, process the accounts
     if ((requisition.status === 'LINKED' || requisition.status === 'LN') && requisition.accounts && requisition.accounts.length > 0) {
-      // Resolve DB and collection IDs from env with sensible defaults
-      const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID as string;
-      const REQUISITIONS_COLLECTION_ID = process.env.APPWRITE_REQUISITIONS_COLLECTION_ID || 'requisitions';
-      const BANK_CONNECTIONS_COLLECTION_ID = process.env.APPWRITE_BANK_CONNECTIONS_COLLECTION_ID || 'bank_connections';
-      const BANK_ACCOUNTS_COLLECTION_ID = process.env.APPWRITE_BANK_ACCOUNTS_COLLECTION_ID || 'bank_accounts';
-      const BALANCES_COLLECTION_ID = process.env.APPWRITE_BALANCES_COLLECTION_ID || 'balances';
-      const TRANSACTIONS_COLLECTION_ID = process.env.APPWRITE_TRANSACTIONS_COLLECTION_ID || 'transactions';
       // Create server-side client with API key
       const client = new Client()
         .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT as string)
         .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID as string);
       
-      // Set API key for server-side operations manually
-      client.headers['X-Appwrite-Key'] = process.env.APPWRITE_API_KEY as string;
+      // Set API key for server-side operations
+      client.setKey(process.env.APPWRITE_API_KEY as string);
       const databases = new Databases(client);
 
       try {
         // Store requisition in database first
         try {
           await databases.createDocument(
-            DATABASE_ID,
-            REQUISITIONS_COLLECTION_ID,
+            process.env.APPWRITE_DATABASE_ID as string,
+            'requisitions',
             requisition.id,
             {
               userId: userId,
@@ -92,8 +49,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
               institutionName: requisition.institution_name || 'Unknown Bank',
               status: requisition.status,
               reference: requisition.reference,
-              // Some schemas require redirectUri; prefer value from requisition, else env
-              redirectUri: (requisition.redirect as string | undefined) || (process.env.GC_REDIRECT_URI as string | undefined) || undefined,
             }
           );
         } catch (error) {
@@ -104,8 +59,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         let connectionDocId = '';
         try {
           const connectionDoc = await databases.createDocument(
-            DATABASE_ID,
-            BANK_CONNECTIONS_COLLECTION_ID,
+            process.env.APPWRITE_DATABASE_ID as string,
+            'bank_connections',
             ID.unique(),
             {
               userId: userId,
@@ -131,11 +86,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
             // Store bank account in database
             try {
               const accountDoc = await databases.createDocument(
-                DATABASE_ID,
-                BANK_ACCOUNTS_COLLECTION_ID,
+                process.env.APPWRITE_DATABASE_ID as string,
+                'bank_accounts',
                 accountId,
                 {
                   userId: userId,
+                  connectionId: connectionDocId,
                   accountId: accountId,
                   institutionId: requisition.institution_id,
                   institutionName: requisition.institution_name || 'Unknown Bank',
@@ -156,8 +112,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
                     try {
                       const balanceId = `${accountId}_${balance.balanceType || 'closingBooked'}_${balance.referenceDate || new Date().toISOString().split('T')[0]}`;
                       await databases.createDocument(
-                        DATABASE_ID,
-                        BALANCES_COLLECTION_ID,
+                        process.env.APPWRITE_DATABASE_ID as string,
+                        'balances',
                         balanceId,
                         {
                           userId: userId,
@@ -189,8 +145,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
                                               `${accountId}_${transaction.bookingDate || new Date().toISOString().split('T')[0]}_${Date.now()}`;
                       
                       await databases.createDocument(
-                        DATABASE_ID,
-                        TRANSACTIONS_COLLECTION_ID,
+                        process.env.APPWRITE_DATABASE_ID as string,
+                        'transactions',
                         transactionDocId,
                         {
                           userId: userId,

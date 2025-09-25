@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { SandboxTestButton } from './SandboxTestButton';
 
 interface Institution {
   id: string;
@@ -46,6 +45,7 @@ export function BankConnectionScreen({ userId, onConnectionSuccess }: BankConnec
           throw new Error(errorData.error || `Failed to fetch institutions (${response.status})`);
         }
         
+        const data = await response.json();
         const data = await response.json();
         
         // Add Sandbox Finance for testing
@@ -213,11 +213,6 @@ export function BankConnectionScreen({ userId, onConnectionSuccess }: BankConnec
         )}
 
         {/* Connection Status */}
-
-        {/* Sandbox Testing Component */}
-        {process.env.NODE_ENV === 'development' && (
-          <SandboxTestButton userId={userId} />
-        )}
         {isConnecting && (
           <div className="glass-card p-6 mb-6 text-center">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
